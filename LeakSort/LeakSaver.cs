@@ -8,11 +8,11 @@ using System.Threading.Tasks;
 
 namespace LeakSort
 {
-	class LeakSaver
+	class LeakSaver : IDisposable
 	{
 		private const string legalCharacters = "abcdefghijklmnopqrstuvwxyz0123456789";
 
-		private Dictionary<string, LeakStream> fileStreams = new Dictionary<string, LeakStream>();
+		private Dictionary<string, LeakStreamWriter> fileStreams = new Dictionary<string, LeakStreamWriter>();
 		private HashSet<string> directories = new HashSet<string>();
 		private int writeCount;
 		private readonly int layers;
@@ -29,20 +29,23 @@ namespace LeakSort
 		public async Task SaveLine(string line)
 		{
 			Interlocked.Increment(ref writeCount);
-			string directory = GetDirectory(line);
-			string path = GetFilePath(line);
+			string directory = GetDirectory(basePath, line, layers - 1); //describes the dir in which the file belongs
+			string path = GetFilePath(basePath, line, layers);
 
-			if (fileStreams.TryGetValue(path, out LeakStream outStream))
+			if (fileStreams.TryGetValue(path, out LeakStreamWriter outStream))
 			{
 				await outStream.WriteLine(line, WriteCount);
 				return;
 			}
-			CreateDirectory(directory);
+			else
+			{
+				CreateDirectory(directory);
 
-			LeakStream stream = new LeakStream(Path.Combine(basePath, path));
-			fileStreams.Add(path, stream);
-			stream.Open();
-			await stream.WriteLine(line, WriteCount);
+				LeakStreamWriter stream = new LeakStreamWriter(Path.Combine(basePath, path));
+				fileStreams.Add(path, stream);
+				stream.Open();
+				await stream.WriteLine(line, WriteCount);
+			}
 		}
 
 		private void CreateDirectory(string directory)
@@ -62,28 +65,47 @@ namespace LeakSort
 			}
 		}
 
-		private string GetPathOfComponents(string text, int layers)
+		public static string GetPathOfComponents(string basePath, string text, int layers)
 		{
 			int layerCount = Math.Min(layers, text.Length);
 
-			string[] components = new string[layerCount];
-
+			string[] components = new string[layerCount + 1];
+			components[0] = basePath;
 			for (int i = 0; i < layerCount; i++)
 			{
 				if (legalCharacters.IndexOf(text[i], StringComparison.InvariantCultureIgnoreCase) != -1)
 				{
-					components[i] = text[i].ToString().ToLowerInvariant();
+					components[i + 1] = text[i].ToString().ToLowerInvariant();
 				}
 				else
 				{
-					components[i] = "symbols";
+					components[i + 1] = "symbols";
 				}
 			}
 
 			return Path.Combine(components);
 		}
 
-		private string GetDirectory(string line) => GetPathOfComponents(line, layers);
-		private string GetFilePath(string line) => GetPathOfComponents(line, layers + 1) + ".txt";
+		public static string GetDirectory(string basePath, string line, int layers) => GetPathOfComponents(basePath, line, layers);
+		public static string GetFilePath(string basePath, string line, int layers) => GetPathOfComponents(basePath, line, layers) + ".txt";
+
+
+		public void Dispose()
+		{
+			foreach (var kv in fileStreams)
+			{
+				kv.Value.Dispose();
+			}
+			GC.SuppressFinalize(this);
+		}
+
+		public async Task DisposeAsync()
+		{
+			foreach(var kv in fileStreams)
+            {
+				await kv.Value.DisposeAsync();
+            }
+			GC.SuppressFinalize(this);
+		}
 	}
 }
