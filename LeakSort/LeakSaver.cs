@@ -29,8 +29,8 @@ namespace LeakSort
 		public async Task SaveLine(string line)
 		{
 			Interlocked.Increment(ref writeCount);
-			string directory = GetDirectory(basePath, line, layers - 1); //describes the dir in which the file belongs
-			string path = GetFilePath(basePath, line, layers);
+			string directory = GetDirectory(line, layers); //describes the dir in which the file belongs
+			string path = GetFilePath(line, layers);
 
 			if (fileStreams.TryGetValue(path, out LeakStreamWriter outStream))
 			{
@@ -61,16 +61,27 @@ namespace LeakSort
 			{
 				curPath = Path.Combine(curPath, subPaths[i]);
 				if (!directories.Contains(curPath))
+				{
 					Directory.CreateDirectory(Path.Combine(basePath, curPath));
+					directories.Add(curPath);
+				}
 			}
 		}
 
-		public static string GetPathOfComponents(string basePath, string text, int layers)
+		public string GetPathOfComponentsAbsolute(string text, int layers) => Path.Combine(basePath, GetPathOfComponents(text, layers));
+
+		/// <summary>
+		/// Computes the Path of a piece of text
+		/// </summary>
+		/// <param name="text">The text</param>
+		/// <param name="layers">The number of layers in the path</param>
+		/// <returns>The relative Path of the text</returns>
+		public static string GetPathOfComponents(string text, int layers)
 		{
 			int layerCount = Math.Min(layers, text.Length);
 
 			string[] components = new string[layerCount + 1];
-			components[0] = basePath;
+			components[0] = string.Empty;
 			for (int i = 0; i < layerCount; i++)
 			{
 				if (legalCharacters.IndexOf(text[i], StringComparison.InvariantCultureIgnoreCase) != -1)
@@ -86,13 +97,15 @@ namespace LeakSort
 			return Path.Combine(components);
 		}
 
-		public static string GetDirectory(string basePath, string line, int layers) => GetPathOfComponents(basePath, line, layers);
+		public static string GetPathOfComponents(string basePath, string text, int layers) => Path.Combine(basePath, GetPathOfComponents(text, layers));
+		public static string GetDirectory(string line, int layers) => GetPathOfComponents(line, layers - 1);
+		public static string GetFilePath(string line, int layers) => GetPathOfComponents(line, layers) + ".txt";
 		public static string GetFilePath(string basePath, string line, int layers) => GetPathOfComponents(basePath, line, layers) + ".txt";
 
 
 		public void Dispose()
 		{
-			foreach (var kv in fileStreams)
+			foreach (KeyValuePair<string, LeakStreamWriter> kv in fileStreams)
 			{
 				kv.Value.Dispose();
 			}
@@ -101,10 +114,10 @@ namespace LeakSort
 
 		public async Task DisposeAsync()
 		{
-			foreach(var kv in fileStreams)
-            {
+			foreach (KeyValuePair<string, LeakStreamWriter> kv in fileStreams)
+			{
 				await kv.Value.DisposeAsync();
-            }
+			}
 			GC.SuppressFinalize(this);
 		}
 	}
