@@ -56,7 +56,6 @@ namespace LeakSort
         {
             exit = true;
             Writer.Wait();
-            Thread.Sleep(5);
             streamWriter.Flush();
             streamWriter.Dispose();
             GC.SuppressFinalize(this);
