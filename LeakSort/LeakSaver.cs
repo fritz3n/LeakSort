@@ -101,11 +101,11 @@ namespace LeakSort
             {
                 while (linequeue.Count > 5000)
                 {
-                    await Task.Delay(10, cancellationToken);
-                    if (cancellationToken.IsCancellationRequested)
+                    try
                     {
-                        return;
+                        await Task.Delay(10, cancellationToken);
                     }
+                    catch(TaskCanceledException) { return; }
                 }
             }
             linequeue.Enqueue(line);
