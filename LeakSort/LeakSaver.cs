@@ -92,11 +92,20 @@ namespace LeakSort
 
         public async Task SaveLine(string line)
         {
+            await SaveLine(line, new CancellationTokenSource().Token);
+        }
+
+        public async Task SaveLine(string line, CancellationToken cancellationToken)
+        {
             if (linequeue.Count > 10000)
             {
                 while (linequeue.Count > 5000)
                 {
-                    await Task.Delay(10);
+                    await Task.Delay(10, cancellationToken);
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
                 }
             }
             linequeue.Enqueue(line);
