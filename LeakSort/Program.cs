@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace LeakSort
 {
@@ -10,13 +11,17 @@ namespace LeakSort
         static async System.Threading.Tasks.Task Main(string[] args)
         {
             tsc = new CancellationTokenSource();
-            Console.CancelKeyPress += Console_CancelKeyPress;
             InputProgress prog;
-            using (LeakSaver ls = new LeakSaver(3, @"D:\leaks2"))
+            using (LeakSaver ls = new LeakSaver(3, @"D:\leaks"))
             {
-                li = new LeakInput(@"D:\dropbox", ls);
-                prog = await li.SortAllAsync(tsc.Token);
-
+                Console.WriteLine("Skip to: ");
+                long skip = long.Parse(Console.ReadLine());
+                li = new LeakInput(@"D:\dropbox", ls, skip);
+                Task<InputProgress> inputTask = li.SortAllAsync(tsc.Token);
+                Console.ReadLine();
+                tsc.Cancel();
+                Console.WriteLine("Stopping");
+                prog = await inputTask;
             }
 
             if (prog.IsDone)
@@ -26,15 +31,9 @@ namespace LeakSort
             }
             else
             {
-                Console.WriteLine("Progress: {0}%\t Done: {1}", prog.Percentage *100, prog.Completed);
+                Console.WriteLine("Progress: {0}%\t Done: {1}\tinMB: {2}", prog.Percentage * 100, prog.Completed, prog.Completed / 1000/1000);
                 Console.Read();
             }
-        }
-
-        private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
-        {
-            tsc.Cancel();
-            Console.WriteLine("Stopping");
         }
     }
 }

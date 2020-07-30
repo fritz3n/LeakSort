@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -9,8 +10,8 @@ namespace LeakSort
 {
 	class LeakInput
 	{
-		private StreamReader streamReader = null;
-		private readonly LeakSaver leakSaver;
+		private StreamReader streamReader;
+        private readonly LeakSaver leakSaver;
 
 		public string BasePath { get; }
 
@@ -18,22 +19,31 @@ namespace LeakSort
 		{
 			BasePath = path;
 			this.leakSaver = leakSaver;
-		}
-
-
-		private void Open() => streamReader = new StreamReader(new FileStream(BasePath,
+			streamReader = new StreamReader(new FileStream(BasePath,
 				FileMode.Open, FileAccess.Read, FileShare.None,
 				bufferSize: 4096, useAsync: true));
+		}
+
+        public LeakInput(string path, LeakSaver leakSaver, long skip) : this(path, leakSaver)
+        {
+			if (skip < 0) { throw new ArgumentException("skip was negative."); }
+			if (skip != 0)
+			{
+				//Set the position before the one supplied so that we can be sure that don't skip some lines (needed because StreamReaders are buffered)
+				streamReader.BaseStream.Position = skip - 4096;
+				streamReader.ReadLine(); //read a line so the next one is not cut off.
+				//may result in some lines getting read twice.
+			}
+        }
 
 		public async Task<InputProgress> SortAllAsync(CancellationToken cancellationToken)
 		{
-			if(streamReader == null)
+            while (true)
             {
-				Open();
-            }
-
-            while (!streamReader.EndOfStream && !cancellationToken.IsCancellationRequested)
-            {
+				if(cancellationToken.IsCancellationRequested || streamReader.EndOfStream)
+                {
+					break;
+                }
 				string line = streamReader.ReadLine();
 				await leakSaver.SaveLine(line);
             }
