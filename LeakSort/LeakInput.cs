@@ -1,56 +1,92 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
-using System.Text;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace LeakSort
 {
-	class LeakInput
-	{
-		private StreamReader streamReader;
+    class LeakInput
+    {
+        private StreamReader streamReader;
         private readonly LeakSaver leakSaver;
 
-		public string BasePath { get; }
+        public string BasePath { get; }
 
         public LeakInput(string path, LeakSaver leakSaver)
-		{
-			BasePath = path;
-			this.leakSaver = leakSaver;
-			streamReader = new StreamReader(new FileStream(BasePath,
-				FileMode.Open, FileAccess.Read, FileShare.None,
-				bufferSize: 4096, useAsync: true));
-		}
-
-        public LeakInput(string path, LeakSaver leakSaver, long skip) : this(path, leakSaver)
         {
-			if (skip < 0) { throw new ArgumentException("skip was negative."); }
-			if (skip != 0)
-			{
-				//Set the position before the one supplied so that we can be sure that don't skip some lines (needed because StreamReaders are buffered)
-				streamReader.BaseStream.Position = skip - 4096;
-				streamReader.ReadLine(); //read a line so the next one is not cut off.
-				//may result in some lines getting read twice.
-			}
+            BasePath = path;
+            this.leakSaver = leakSaver;
+            streamReader = new StreamReader(new FileStream(BasePath,
+                FileMode.Open, FileAccess.Read, FileShare.None,
+                bufferSize: 4096, useAsync: true));
         }
 
-		public async Task<InputProgress> SortAllAsync(CancellationToken cancellationToken)
-		{
-            while (true)
+        public LeakInput(string path, LeakSaver leakSaver, LeakReader lr) : this(path, leakSaver)
+        {
+            //hack to get around no use of async await
+            Task t = Task.Run(async () =>
             {
-				if(cancellationToken.IsCancellationRequested || streamReader.EndOfStream)
+                int jumpSize = 1000 * 1000 * 100;// 100 mb
+                int maxNumberOfDecs = 10;
+                bool isFirstLine = true;
+                long lastJmpPos = 0;
+                while (true)
                 {
-					break;
-                }
-				string line = streamReader.ReadLine();
-				await leakSaver.SaveLine(line);
-            }
-			return new InputProgress(streamReader.BaseStream);
-		}
+                    string line = await streamReader.ReadLineAsync();
+                    if (await lr.HasResult(line)) //line is present jump forward
+                    {
+                        lastJmpPos += jumpSize - 1000;
+                        streamReader.BaseStream.Position = lastJmpPos; //jump less because we will read a partial line
+                        streamReader.DiscardBufferedData();
+                        await streamReader.ReadLineAsync();
+                    }
+                    else
+                    {
+                        //if the first line is not found no point in looking
+                        if (isFirstLine) { streamReader.BaseStream.Position = 0; streamReader.DiscardBufferedData(); return; }
 
-		public long GetPosition() => streamReader.BaseStream.Position;
-		public long GetLength() => streamReader.BaseStream.Length;
-	}
+                        //not found jump back decrease jump size
+                        lastJmpPos -= jumpSize + 1000;
+                        lastJmpPos = lastJmpPos <= 0 ? 0 : lastJmpPos;
+                        streamReader.BaseStream.Position = lastJmpPos; //jump back further than needed because we will read a partial line
+                        jumpSize /= 2;
+                        streamReader.DiscardBufferedData();
+                        await streamReader.ReadLineAsync();
+                        maxNumberOfDecs--;
+                        if (maxNumberOfDecs == 0)
+                        {
+                            break;
+                        }
+                    }
+                    isFirstLine = false;
+                }
+
+                while (true)
+                {
+                    string line = await streamReader.ReadLineAsync();
+                    if (!(await lr.HasResult(line)))
+                    {
+                        await leakSaver.SaveLine(line);
+                        break;
+                    }
+                }
+                Console.WriteLine("Skipped aprox. {0}", streamReader.BaseStream.Position);
+            });
+            t.Wait();
+        }
+
+        public async Task<InputProgress> SortAllAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested && !streamReader.EndOfStream)
+            {
+                string line = streamReader.ReadLine();
+                await leakSaver.SaveLine(line, cancellationToken);
+            }
+            return new InputProgress(streamReader.BaseStream);
+        }
+
+        public long GetPosition() => streamReader.BaseStream.Position;
+        public long GetLength() => streamReader.BaseStream.Length;
+    }
 }
