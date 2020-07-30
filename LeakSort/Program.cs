@@ -10,23 +10,23 @@ namespace LeakSort
         static CancellationTokenSource tsc;
         static async System.Threading.Tasks.Task Main(string[] args)
         {
+            LeakReader lr = new LeakReader(3, @"D:\leaks");
+            
             tsc = new CancellationTokenSource();
             InputProgress prog;
             using (LeakSaver ls = new LeakSaver(3, @"D:\leaks"))
             {
-                Console.WriteLine("Skip to: ");
-                long skip = long.Parse(Console.ReadLine());
-                li = new LeakInput(@"D:\dropbox", ls, skip);
+                li = new LeakInput(@"D:\dropbox", ls, lr);
                 Task<InputProgress> inputTask = li.SortAllAsync(tsc.Token);
                 Console.ReadLine();
                 tsc.Cancel();
                 Console.WriteLine("Stopping");
                 prog = await inputTask;
+                Console.WriteLine("Stopped inputing waiting for flush");
             }
 
             if (prog.IsDone)
             {
-                LeakReader lr = new LeakReader(3, @"D:\leaks");
                 System.Collections.Generic.IEnumerable<string> res = await lr.Lookup("ric");
             }
             else
