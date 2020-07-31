@@ -33,6 +33,7 @@ namespace LeakSort
                 long lastJmpPos = 0;
                 while (true)
                 {
+                    Console.WriteLine("checking at byte {0}", lastJmpPos);
                     string line = await streamReader.ReadLineAsync();
                     if (await lr.HasResult(line)) //line is present jump forward
                     {

@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30114.105
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LeakSort", "LeakSort\LeakSort.csproj", "{FC97BF6B-9662-470F-A04E-639B2DA881C3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LeakSort", "LeakSort\LeakSort.csproj", "{FC97BF6B-9662-470F-A04E-639B2DA881C3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Query", "Query\Query.csproj", "{CD70A1CD-66C9-453A-9575-E90787065C8F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{FC97BF6B-9662-470F-A04E-639B2DA881C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FC97BF6B-9662-470F-A04E-639B2DA881C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FC97BF6B-9662-470F-A04E-639B2DA881C3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CD70A1CD-66C9-453A-9575-E90787065C8F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CD70A1CD-66C9-453A-9575-E90787065C8F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CD70A1CD-66C9-453A-9575-E90787065C8F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CD70A1CD-66C9-453A-9575-E90787065C8F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace LeakSort
 {
-    internal class LeakReader
+    public class LeakReader
     {
         const string legalCharacters = "abcdefghijklmnopqrstuvwxyz0123456789";
 
