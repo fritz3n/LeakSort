@@ -11,7 +11,7 @@ using System.Threading.Tasks.Dataflow;
 
 namespace LeakSort
 {
-    class LeakSaver : IDisposable
+    public class LeakSaver : IDisposable
     {
         private const string legalCharacters = "abcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -204,7 +204,7 @@ namespace LeakSort
                 this.streamWriter = sw;
             }
         }
-        public static int Compare(KeyValuePair<string, StreamWriterWrapper> x, KeyValuePair<string, StreamWriterWrapper> y)
+        internal static int Compare(KeyValuePair<string, StreamWriterWrapper> x, KeyValuePair<string, StreamWriterWrapper> y)
         {
             return x.Value.LastUsed.CompareTo(y.Value.LastUsed);
         }

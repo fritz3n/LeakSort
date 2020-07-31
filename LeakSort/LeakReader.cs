@@ -1,10 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
 namespace LeakSort
 {
-    public class LeakReader
+    public class LeakReader : IDisposable
     {
         const string legalCharacters = "abcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -28,7 +29,7 @@ namespace LeakSort
                     while (!sr.EndOfStream)
                     {
                         string line = await sr.ReadLineAsync();
-                        if (line.StartsWith(data))
+                        if (line.StartsWith(data, true, null))
                         {
                             items.AddLast(line);
                         }
@@ -63,6 +64,11 @@ namespace LeakSort
             {
                 return false;
             }
+        }
+
+        public void Dispose()
+        {
+            return;
         }
     }
 }

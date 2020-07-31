@@ -6,7 +6,7 @@ using System.Threading.Tasks.Dataflow;
 
 namespace LeakSort
 {
-    class LeakInput
+    public class LeakInput : IDisposable
     {
         private StreamReader streamReader;
         private readonly LeakSaver leakSaver;
@@ -53,8 +53,6 @@ namespace LeakSort
                     }
 
 
-
-
                     streamReader.BaseStream.Position = middle;
                     streamReader.DiscardBufferedData();
                     // read partial line
@@ -99,5 +97,17 @@ namespace LeakSort
 
         public long GetPosition() => streamReader.BaseStream.Position;
         public long GetLength() => streamReader.BaseStream.Length;
+
+        public void Dispose()
+        {
+            streamReader.Close();
+            GC.SuppressFinalize(this);
+        }
+
+        public async Task DisposeAsync()
+        {
+            streamReader.Close();
+            GC.SuppressFinalize(this);
+        }
     }
 }
