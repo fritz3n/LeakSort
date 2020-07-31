@@ -1,8 +1,8 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace LeakSort
 {
@@ -27,41 +27,51 @@ namespace LeakSort
             //hack to get around no use of async await
             Task t = Task.Run(async () =>
             {
-                int jumpSize = 1000 * 1000 * 100;// 100 mb
-                int maxNumberOfDecs = 10;
-                bool isFirstLine = true;
-                long lastJmpPos = 0;
-                while (true)
+                //do a 'binary search' in the stream
+                long lowerBound = 0;
+                long upperBound = streamReader.BaseStream.Length;
+                const long minDist = 5 * 1000;//start looking line by line at 5kb
+                while (upperBound - lowerBound > minDist)
                 {
-                    Console.WriteLine("checking at byte {0}", lastJmpPos);
-                    string line = await streamReader.ReadLineAsync();
-                    if (await lr.HasResult(line)) //line is present jump forward
+                    long middle = (lowerBound + upperBound) / 2;
+
+                    // print a nice graphic
+                    const long glen = 100;
+                    long maxLen = streamReader.BaseStream.Length;
+                    long gLpos = (glen * lowerBound) / maxLen;
+                    long gMpos = (glen * middle) / maxLen;
+                    long gUpos = (glen * upperBound) / maxLen;
+                    char[] gdata = new string(' ', (int)glen + 2).ToCharArray();
+                    gdata[0] = '[';
+                    gdata[gdata.Length - 1] = ']';
+                    if (gLpos != gMpos && gMpos != gUpos)
                     {
-                        lastJmpPos += jumpSize - 1000;
-                        streamReader.BaseStream.Position = lastJmpPos; //jump less because we will read a partial line
-                        streamReader.DiscardBufferedData();
-                        await streamReader.ReadLineAsync();
+                        gdata[gLpos + 1] = '<';
+                        gdata[gMpos + 1] = '.';
+                        gdata[gUpos + 1] = '>';
+                        Console.WriteLine(new string(gdata));
+                    }
+
+
+
+
+                    streamReader.BaseStream.Position = middle;
+                    streamReader.DiscardBufferedData();
+                    // read partial line
+                    await streamReader.ReadLineAsync();
+                    string line = await streamReader.ReadLineAsync();
+                    if (await lr.HasResult(line))
+                    {
+                        lowerBound = middle - 1000; // offset because partial lines
                     }
                     else
                     {
-                        //if the first line is not found no point in looking
-                        if (isFirstLine) { streamReader.BaseStream.Position = 0; streamReader.DiscardBufferedData(); return; }
-
-                        //not found jump back decrease jump size
-                        lastJmpPos -= jumpSize + 1000;
-                        lastJmpPos = lastJmpPos <= 0 ? 0 : lastJmpPos;
-                        streamReader.BaseStream.Position = lastJmpPos; //jump back further than needed because we will read a partial line
-                        jumpSize /= 2;
-                        streamReader.DiscardBufferedData();
-                        await streamReader.ReadLineAsync();
-                        maxNumberOfDecs--;
-                        if (maxNumberOfDecs == 0)
-                        {
-                            break;
-                        }
+                        upperBound = middle + 1000; // offset because partial lines
                     }
-                    isFirstLine = false;
                 }
+                streamReader.BaseStream.Position = lowerBound;
+                streamReader.DiscardBufferedData();
+                await streamReader.ReadLineAsync();
 
                 while (true)
                 {
@@ -72,7 +82,7 @@ namespace LeakSort
                         break;
                     }
                 }
-                Console.WriteLine("Skipped aprox. {0}", streamReader.BaseStream.Position);
+                Console.WriteLine("Skipped aprox. {0}MB", streamReader.BaseStream.Position / (1000 * 1000));
             });
             t.Wait();
         }
